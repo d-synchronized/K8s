@@ -1,0 +1,37 @@
+#https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#deployment-v1-apps
+
+# Create a cluster with replicas and 
+kubectl create -f deployment-ex1.yaml
+kubectl create -f loadbalancer-service.yaml
+
+kubectl get deployment
+NAME                 READY   UP-TO-DATE   AVAILABLE   AGE
+deployment-example   3/3     3            0           12s
+
+kubectl get rs
+NAME                            DESIRED   CURRENT   READY   AGE
+deployment-example-775946f654   3         3         3       22s
+
+kubectl get pods
+NAME                                  READY   STATUS    RESTARTS   AGE
+deployment-example-775946f654-2pnhb   1/1     Running   0          28s
+deployment-example-775946f654-bsbnk   1/1     Running   0          28s
+deployment-example-775946f654-c7mfm   1/1     Running   0          28s
+
+kubectl get service
+NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+kubernetes   ClusterIP      10.96.0.1       <none>        443/TCP          126m
+npservice    LoadBalancer   10.110.231.17   <pending>     8090:32614/TCP   13m
+
+# Run the request in a seperate terminal,let it run
+while true; do curl http://10.110.231.17:8090;sleep 1;done
+
+# Increment image version and observer the output of above curl command 
+kubectl apply -f deployment-ex1-updgrade.yaml
+
+#Get the rollout history
+kubectl rollout history deployment deployment-example
+
+#Undo to the last deployment 
+kubectl rollout undo deployment deployment-example
+

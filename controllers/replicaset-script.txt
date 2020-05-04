@@ -1,0 +1,22 @@
+# Create a Replica Set
+kubectl create -f replicaset-ex1.yaml
+
+# View Replica Set
+kubectl get rs -o wide
+
+-> Output
+   NAME    DESIRED   CURRENT   READY   AGE     CONTAINERS   IMAGES                      SELECTOR
+   rs-ex   2         2         2       5m52s   sampleapi    dishantanand/sampleapi:v1   tier=frontend
+
+# Update the replica count
+kubectl apply -f replicaset-ex1.yaml
+
+-> Output
+    Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
+    replicaset.apps/rs-ex configured
+
+# Scale the replicaset with a command
+kubectl scale rs rs-ex --replicas=4
+
+# View the state of pods
+kubectl describe pods

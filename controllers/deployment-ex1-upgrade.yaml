@@ -1,0 +1,30 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: deployment-example
+  labels:
+    app: deploymentexample
+    tier: frontend
+spec:
+  replicas: 3
+  minReadySeconds: 20
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      tier: frontend
+  template:
+    metadata:
+      name: sampleapi
+      labels:
+        app: sampleapi
+        tier: frontend
+    spec:
+      containers:
+        - name: sampleapi
+          image: dishantanand/sampleapi:v2
+          ports:
+            - containerPort: 8090

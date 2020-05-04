@@ -1,0 +1,92 @@
+# Step 1 ON KMaster
+sudo apt-get update
+
+ps aux | grep -i apt
+sudo killall apt apt-get
+
+#https://itsfoss.com/could-not-get-lock-error/ 
+-> In case apt is locked by some system update or some background process
+   sudo rm /var/lib/apt/lists/lock
+   sudo rm /var/cache/apt/archives/lock
+   sudo rm /var/lib/dpkg/lock
+   sudo dpkg --configure -a
+
+sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+sudo apt-get update ; clear
+sudo apt-get install -y docker-ce
+sudo service docker start ; clear
+
+echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+sudo apt-get update ; clear
+sudo apt-get install -y kubelet kubeadm kubectl	
+
+
+# Step 2 On KMaster
+swapoff -a (Make sure the swapp is turned off)
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+
+Install Netwoking solution (I choose flannel)
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/2140ac876ef134e0ed5af15c65e414cf26827915/Documentation/kube-flannel.yml
+
+
+# Step 3 On KNode
+swapoff -a (always switch off swap it is not supported currently)
+
+-> We get below commands from KMaster after kubeadm init , Copy from there to all KNodes 
+  kubeadm join 192.168.1.4:6443 --token 5orv2u.suc3xba6hyg5j8zv \
+    --discovery-token-ca-cert-hash sha256:6cf51188fa726daa4c5b2c7a3ae9a7305a194af63d7c398abe06e9615d85c0e9 --v=2
+
+# To run the kubectl client , Run On KMaster
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+
+root@kmaster-vm:~# kubectl get nodes
+NAME         STATUS     ROLES    AGE   VERSION
+kmaster-vm   Ready      master   31m   v1.18.2
+kslave       NotReady   <none>   18s   v1.18.2
+
+
+root@kmaster-vm:~# kubectl get all --all-namespaces
+NAMESPACE     NAME                                     READY   STATUS    RESTARTS   AGE
+kube-system   pod/coredns-66bff467f8-29nhp             0/1     Pending   0          12m
+kube-system   pod/coredns-66bff467f8-q2wfs             0/1     Pending   0          12m
+kube-system   pod/etcd-kmaster-vm                      1/1     Running   0          13m
+kube-system   pod/kube-apiserver-kmaster-vm            1/1     Running   0          13m
+kube-system   pod/kube-controller-manager-kmaster-vm   1/1     Running   0          13m
+kube-system   pod/kube-flannel-ds-amd64-4p46c          1/1     Running   0          63s
+kube-system   pod/kube-proxy-n6tdh                     1/1     Running   0          12m
+kube-system   pod/kube-scheduler-kmaster-vm            1/1     Running   0          13m
+
+
+To regenrate the token
+token=`kubeadm token generate`
+kubeadm token create "$token" --print-join-command --ttl=0
+
+kubectl get pods --all-namespaces
+
+
+root@kmaster-vm:~# kubectl get pods --all-namespaces -o wide
+NAMESPACE     NAME                                 READY   STATUS    RESTARTS   AGE   IP             NODE         NOMINATED NODE   READINESS GATES
+kube-system   coredns-66bff467f8-29nhp             1/1     Running   0          51m   10.244.0.3     kmaster-vm   <none>           <none>
+kube-system   coredns-66bff467f8-q2wfs             1/1     Running   0          51m   10.244.0.2     kmaster-vm   <none>           <none>
+kube-system   etcd-kmaster-vm                      1/1     Running   0          51m   192.168.1.4    kmaster-vm   <none>           <none>
+kube-system   kube-apiserver-kmaster-vm            1/1     Running   0          51m   192.168.1.4    kmaster-vm   <none>           <none>
+kube-system   kube-controller-manager-kmaster-vm   1/1     Running   0          51m   192.168.1.4    kmaster-vm   <none>           <none>
+kube-system   kube-flannel-ds-amd64-4p46c          1/1     Running   0          39m   192.168.1.4    kmaster-vm   <none>           <none>
+kube-system   kube-flannel-ds-amd64-5bbnk          1/1     Running   1          20m   192.168.1.27   kslave       <none>           <none>
+kube-system   kube-proxy-n6tdh                     1/1     Running   0          51m   192.168.1.4    kmaster-vm   <none>           <none>
+kube-system   kube-proxy-ps8zf                     1/1     Running   0          20m   192.168.1.27   kslave       <none>           <none>
+kube-system   kube-scheduler-kmaster-vm            1/1     Running   0          51m   192.168.1.4    kmaster-vm   <none>           <none>
+
+
+ netstat -lnp | grep 1025
+
+
+# Reset the Cluster
+kubeadm reset
